@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ConnectionList, type ConnectionItem } from "@/components/ConnectionList";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { Button } from "@/components/ui/button";
+import { QuickConnectButton } from "@/components/QuickConnectButton";
 import { Plug, Zap } from "lucide-react";
 
 interface DashboardConnectionsProps {
@@ -33,12 +32,10 @@ export function DashboardConnections({ connections, pinnedIds }: DashboardConnec
             {connections.length} across your workspaces · pinned first
           </p>
         </div>
-        <Link href="/connect">
-          <Button variant="outline" size="sm">
-            <Zap className="h-4 w-4" />
-            Quick connect
-          </Button>
-        </Link>
+        <QuickConnectButton variant="outline" size="sm">
+          <Zap className="h-4 w-4" />
+          Quick connect
+        </QuickConnectButton>
       </div>
 
       {connections.length === 0 ?
@@ -47,12 +44,10 @@ export function DashboardConnections({ connections, pinnedIds }: DashboardConnec
           title="No connections yet"
           description="Add hosts in a workspace from the sidebar, or jump in with quick connect."
           action={
-            <Link href="/connect">
-              <Button size="sm">
-                <Zap className="h-4 w-4" />
-                Quick connect
-              </Button>
-            </Link>
+            <QuickConnectButton variant="outline" size="sm">
+              <Zap className="h-4 w-4" />
+              Quick connect
+            </QuickConnectButton>
           }
         />
       : <ConnectionList

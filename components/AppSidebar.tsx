@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import type { WorkspaceWithRole } from "@/lib/db/workspaces";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useQuickConnect } from "@/components/QuickConnectProvider";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
@@ -64,6 +65,35 @@ function NavLink({
       <Icon className="h-4 w-4 shrink-0" />
       {!collapsed && <span className="truncate">{label}</span>}
     </Link>
+  );
+}
+
+function QuickConnectNavItem({
+  collapsed,
+  onClick,
+}: {
+  collapsed: boolean;
+  onClick?: () => void;
+}) {
+  const { openQuickConnect } = useQuickConnect();
+
+  return (
+    <button
+      type="button"
+      title={collapsed ? "Quick connect" : undefined}
+      onClick={() => {
+        onClick?.();
+        openQuickConnect();
+      }}
+      className={cn(
+        "touch-target-inline flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+        "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+        collapsed && "justify-center px-2",
+      )}
+    >
+      <Zap className="h-4 w-4 shrink-0" />
+      {!collapsed && <span className="truncate">Quick connect</span>}
+    </button>
   );
 }
 
@@ -234,14 +264,7 @@ export function AppSidebar({ user, workspaces }: AppSidebarProps) {
           )}
 
           <div className="mt-auto" />
-          <NavLink
-            href="/connect"
-            icon={Zap}
-            label="Quick connect"
-            active={pathname === "/connect"}
-            collapsed={menuCollapsed}
-            onClick={closeMobile}
-          />
+          <QuickConnectNavItem collapsed={menuCollapsed} onClick={closeMobile} />
         </nav>
 
         <div className="shrink-0 border-t border-sidebar-border p-2">

@@ -85,12 +85,10 @@ export default async function HomePage() {
           <DashboardConnections connections={allConnections} pinnedIds={pinnedIds} />
           <ReplayCenter />
         </div>
-        <div className="space-y-6">
-          <ConnectionHistory
-            activeItems={activeSessions as Parameters<typeof ConnectionHistory>[0]["activeItems"]}
-            recentItems={recentHistory as Parameters<typeof ConnectionHistory>[0]["recentItems"]}
-          />
-        </div>
+        <ConnectionHistory
+          activeItems={activeSessions as Parameters<typeof ConnectionHistory>[0]["activeItems"]}
+          recentItems={recentHistory as Parameters<typeof ConnectionHistory>[0]["recentItems"]}
+        />
       </div>
     </div>
   );

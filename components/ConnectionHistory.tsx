@@ -3,16 +3,19 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { formatDistanceToNow } from "date-fns";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { History } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { History, Monitor, Terminal, X } from "lucide-react";
 import type { ConnectionProtocol } from "@/lib/protocols";
 
 export interface HistoryItem {
   id: string;
   connection_id: string | null;
+  quick_session_id?: string | null;
   connection_name: string | null;
   hostname: string | null;
   protocol: string;
@@ -23,6 +26,21 @@ export interface HistoryItem {
   is_live?: boolean;
 }
 
+function parseHistoryDate(value: string): Date {
+  const normalized = value.includes("T") ? value : `${value.replace(" ", "T")}Z`;
+  return new Date(normalized);
+}
+
+function sessionHref(item: HistoryItem): string | null {
+  if (item.connection_id) {
+    return `/session/${item.connection_id}?via=${item.protocol as ConnectionProtocol}`;
+  }
+  if (item.quick_session_id) {
+    return `/connect/${item.quick_session_id}`;
+  }
+  return null;
+}
+
 function protocolBadgeVariant(protocol: string): "ssh" | "vnc" | "rdp" | "secondary" {
   if (protocol === "ssh" || protocol === "vnc" || protocol === "rdp") {
     return protocol;
@@ -30,88 +48,96 @@ function protocolBadgeVariant(protocol: string): "ssh" | "vnc" | "rdp" | "second
   return "secondary";
 }
 
-function StatusDot({ live }: { live: boolean }) {
-  return (
-    <span className="relative flex h-2 w-2">
-      {live && (
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-      )}
-      <span
-        className={`relative inline-flex h-2 w-2 rounded-full ${live ? "bg-emerald-400" : "bg-muted"}`}
-      />
-    </span>
-  );
+function ProtocolIcon({ protocol, className }: { protocol: string; className?: string }) {
+  const Icon = protocol === "ssh" ? Terminal : Monitor;
+  return <Icon className={className} />;
 }
 
-function HistoryRow({
+function SessionRow({
   item,
-  showActions,
   onEnd,
   endingId,
 }: {
   item: HistoryItem;
-  showActions: boolean;
   onEnd?: (id: string) => void;
   endingId?: string | null;
 }) {
-  const statusLabel = item.is_live ? "live" : item.status;
-  const statusVariant =
-    item.is_live ? "success"
-    : item.status === "active" ? "warning"
-    : item.status === "error" ? "destructive"
-    : "secondary";
+  const href = sessionHref(item);
+  const started = parseHistoryDate(item.started_at);
+  const timeLabel = item.is_live
+    ? "Live now"
+    : formatDistanceToNow(started, { addSuffix: true });
 
-  return (
-    <div className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:justify-between lg:flex-col lg:items-stretch lg:gap-2">
-      <div className="flex min-w-0 flex-1 items-start gap-2.5">
-        {item.is_live && <StatusDot live />}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <h4 className="truncate text-xs font-semibold text-foreground" title={item.connection_name || ""}>
-              {item.connection_name || "—"}
-            </h4>
-            <Badge variant={protocolBadgeVariant(item.protocol)} className="font-mono text-[9px] uppercase px-1.5 py-0">
-              {item.protocol}
-            </Badge>
-            <Badge variant={statusVariant} className="text-[9px] px-1.5 py-0">{statusLabel}</Badge>
-          </div>
-          <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground" title={item.hostname || ""}>
-            {item.hostname || "—"}
-          </p>
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            {item.workspace_name && <span>{item.workspace_name} · </span>}
-            {new Date(item.started_at + "Z").toLocaleDateString()} at {new Date(item.started_at + "Z").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </p>
-        </div>
+  const content = (
+    <>
+      <div
+        className={cn(
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-md",
+          item.is_live ? "bg-emerald-500/10" : "bg-accent",
+        )}
+      >
+        {item.is_live ?
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+        : <ProtocolIcon protocol={item.protocol} className="h-4 w-4 text-muted-foreground" />}
       </div>
 
-      {showActions && (
-        <div className="flex shrink-0 gap-1.5 sm:justify-end lg:mt-1 lg:justify-start">
-          {item.connection_id && (
-            <Link
-              href={`/session/${item.connection_id}?via=${item.protocol as ConnectionProtocol}`}
-              className="w-full sm:w-auto lg:w-full"
-            >
-              <Button size="sm" variant="outline" className="h-7 w-full sm:w-auto lg:w-full text-[11px] py-1">
-                {item.is_live ? "Resume" : "Reconnect"}
-              </Button>
-            </Link>
-          )}
-          {item.status === "active" && onEnd && (
-            <Button
-              size="sm"
-              variant="destructive"
-              className="h-7 text-[11px] py-1"
-              disabled={endingId === item.id}
-              onClick={() => onEnd(item.id)}
-            >
-              {endingId === item.id ? "Ending…" : "End"}
-            </Button>
-          )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className="truncate text-sm font-medium text-foreground" title={item.connection_name || ""}>
+            {item.connection_name || "Session"}
+          </p>
+          <Badge
+            variant={protocolBadgeVariant(item.protocol)}
+            className="shrink-0 px-1.5 py-0 font-mono text-[10px] uppercase"
+          >
+            {item.protocol}
+          </Badge>
         </div>
-      )}
-    </div>
+        <p className="truncate font-mono text-xs text-muted-foreground" title={item.hostname || ""}>
+          {item.hostname || "—"}
+        </p>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1">
+        <span className="hidden text-[11px] text-muted sm:inline">{timeLabel}</span>
+        {item.status === "active" && onEnd && (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            disabled={endingId === item.id}
+            title="End session"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onEnd(item.id);
+            }}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+    </>
   );
+
+  const rowClass = cn(
+    "group flex items-center gap-3 px-4 py-3 transition-colors",
+    href && "hover:bg-accent/60",
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={rowClass}>
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={rowClass}>{content}</div>;
 }
 
 export function ConnectionHistory({
@@ -147,53 +173,79 @@ export function ConnectionHistory({
 
   if (!hasActive && !hasRecent) {
     return (
-      <section>
-        <h2 className="mb-4 text-sm font-medium text-foreground">Sessions</h2>
-        <EmptyState
-          icon={<History className="h-5 w-5" />}
-          title="No connection history yet"
-          description="Your recent and active sessions will appear here."
-        />
-      </section>
+      <Card className="lg:sticky lg:top-6">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Recent sessions</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <EmptyState
+            icon={<History className="h-5 w-5" />}
+            title="No sessions yet"
+            description="Connections you open will show up here for quick access."
+          />
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {hasActive && (
-        <section>
-          <h2 className="mb-1 text-sm font-medium text-foreground">Active sessions</h2>
-          <p className="mb-4 text-xs text-muted-foreground">
-            Resume returns to an in-progress session; Open starts fresh.
-          </p>
-          <Card>
-            <CardContent className="divide-y divide-border p-0">
+    <Card className="lg:sticky lg:top-6">
+      <CardHeader className="space-y-1 pb-0">
+        <div className="flex items-center gap-2">
+          <History className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium">Recent sessions</CardTitle>
+        </div>
+        <p className="text-xs text-muted">
+          {hasActive ?
+            `${activeItems.length} active · ${recentItems.length} recent`
+          : `${recentItems.length} recent`}
+        </p>
+      </CardHeader>
+
+      <CardContent className="p-0 pt-3">
+        {hasActive && (
+          <div className="border-b border-border">
+            <p className="px-4 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted">
+              Active
+            </p>
+            <div className="divide-y divide-border">
               {activeItems.map((item) => (
-                <HistoryRow
+                <SessionRow
                   key={item.id}
                   item={item}
-                  showActions
                   onEnd={endSession}
                   endingId={endingId}
                 />
               ))}
-            </CardContent>
-          </Card>
-        </section>
-      )}
+            </div>
+          </div>
+        )}
 
-      {hasRecent && (
-        <section>
-          <h2 className="mb-4 text-sm font-medium text-foreground">Recent connections</h2>
-          <Card>
-            <CardContent className="divide-y divide-border p-0">
-              {recentItems.map((item) => (
-                <HistoryRow key={item.id} item={item} showActions={true} />
-              ))}
-            </CardContent>
-          </Card>
-        </section>
-      )}
-    </div>
+        {hasRecent && (
+          <div>
+            {hasActive && (
+              <p className="px-4 pb-1 pt-3 text-[10px] font-medium uppercase tracking-wide text-muted">
+                Recent
+              </p>
+            )}
+            <div
+              className={cn(
+                "divide-y divide-border",
+                !hasActive && "border-t border-border",
+              )}
+            >
+              <div className="max-h-[min(52vh,480px)] overflow-y-auto overscroll-contain">
+                {recentItems.map((item) => (
+                  <SessionRow key={item.id} item={item} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

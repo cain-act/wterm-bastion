@@ -192,6 +192,28 @@ select:disabled,
   color: inherit;
 }
 
+.recording-preview-terminal {
+  --term-font-size: 11px;
+  --term-row-height: 14px;
+  --term-bg: #0a0a0a;
+  --term-fg: #d4d4d4;
+}
+
+.recording-preview .recording-preview-wterm.wterm {
+  padding: 6px;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+  max-width: none;
+  height: auto !important;
+  width: max-content;
+  overflow: visible;
+}
+
+.recording-preview .recording-preview-wterm .term-cursor {
+  display: none;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: #3f3f46 #18181b;
